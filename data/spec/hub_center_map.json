@@ -1,0 +1,67 @@
+{
+ "_설명": [
+  "제주데이터허브 공개 데이터 2종의 컬럼과 제주빅데이터센터 데이터 컬럼의 짝이다.",
+  "hub 는 허브 화면의 한글 이름, hub_file 은 내려받은 실물 CSV 의 첫 줄에 적힌 이름이다(2026-11-17 받은 파일). 컬럼명이 조금 달라도 읽도록 이름 후보(hub_candidates)를 둔다.",
+  "relation 은 추정이다. 근거는 basis 에, 확인하지 못한 것은 unverified 에 적었다."
+ ],
+ "relation": "같은 원천의 도 전체 집계본으로 보임(추정)",
+ "d1048": {
+  "hub_no": 1048,
+  "name": "업종별 성별 카드 이용 정보",
+  "file": "업종별성별카드이용정보.csv",
+  "grain": "도 전체 × 월 × 업종 × 이용자구분 × 성별",
+  "center_datasets": ["1-07", "1-08", "1-11", "1-12", "1-13", "1-14"],
+  "columns": [
+   {"key": "ym", "hub": "연월", "hub_file": "base_year_month", "hub_candidates": ["연월", "년월", "기준연월", "기준년월", "base_year_month", "ym"], "center": "base_year_month", "unit": "month", "note": "표기가 같다(YYYYMM, 예 201801)."},
+   {"key": "biz", "hub": "업종명", "hub_file": "biz_nm", "hub_candidates": ["업종명", "업종", "biz_nm"], "center": "biz_nm", "unit": "biz", "note": "센터 참고표의 42개 업종명과 맞춘다. 공백과 쉼표·물음표를 지우고 비교한다. 실물에서 다른 곳은 둘이다: '피자 햄버거 샌드위치 및 유사 음식점업'(센터 참고표는 쉼표가 있음), 2021-12 한 달의 '기타음?식료품위주종합소매업'(글자가 깨짐). 1048 에는 업종코드가 없어 조건에 쓸 코드는 센터 참고표에서 찾는다."},
+   {"key": "user_type", "hub": "이용자구분", "hub_file": "user_type", "hub_candidates": ["이용자구분", "이용자 구분", "user_type"], "center": "user_type", "unit": "user_type", "values": ["제주도민", "내국인", "법인", "중국", "일본", "동남아", "기타외국"], "note": "7개 값의 표기가 같다."},
+   {"key": "sex", "hub": "성별", "hub_file": "sex", "hub_candidates": ["성별", "sex", "gender"], "center": "sex", "unit": "sex", "values": ["남성", "여성", "알수없음"], "note": "3개 값의 표기가 같다."},
+   {"key": "user_cnt", "hub": "이용자수", "hub_file": "user_count", "hub_candidates": ["이용자수", "이용자 수", "user_cnt", "user_count"], "center": "user_cnt", "unit": null, "note": "월별 값이다. 여러 달을 더하지 않는다."},
+   {"key": "use_cnt", "hub": "이용건수", "hub_file": "use_count", "hub_candidates": ["이용건수", "이용 건수", "use_cnt", "use_count"], "center": "use_cnt", "unit": null, "note": "더할 수 있다."},
+   {"key": "use_amt", "hub": "이용금액", "hub_file": "use_amount", "hub_candidates": ["이용금액", "이용 금액", "use_amt", "use_amount"], "center": "use_amt", "unit": null, "note": "더할 수 있다. 대조 줄의 기준 값이다."}
+  ],
+  "basis": [
+   "센터 카드 시트 아홉 장(1-07~1-14, 1-17)의 [참고] 업종코드 및 업종명 표가 42행으로 서로 같다(build_spec.py 가 읽은 값).",
+   "1048 실물의 이용자구분 7값·성별 3값이 센터 user_type·sex 비고란과 글자까지 같고, 수치 3종(user_count·use_count·use_amount)이 센터 user_cnt·use_cnt·use_amt 와 짝이다.",
+   "1048 실물의 업종명 42개가 센터 참고표의 42개와 같다(쉼표 유무 한 곳과 깨진 글자 한 달을 빼면 글자까지 같음. tests/test_public_data.py 가 확인한다).",
+   "1048 의 끝 달(2025-06)이 센터 v01 계열(1-07·1-11·1-13)의 끝 달과 같다."
+  ],
+  "unverified": [
+   "1048 이 센터 데이터의 도 전체 합계인지 실물로 대조하지 못했다. 그래서 대조 줄은 '검증 통과'가 아니라 '차이'로 표기한다.",
+   "허브 화면에는 어느 카드사 표본인지 표기가 없다."
+  ]
+ },
+ "d520": {
+  "hub_no": 520,
+  "name": "제주도 방문 내국인 유동인구 추이",
+  "file": "제주도방문내국인유동인구추이.csv",
+  "grain": "도 전체 × 월 × 성별 × 연령대 × 시간",
+  "center_datasets": ["4-10", "4-11", "4-07"],
+  "columns": [
+   {"key": "ym", "hub": "base_year_month", "hub_candidates": ["base_year_month", "기준연월", "기준년월", "연월", "년월", "ym"], "center": "base_date", "unit": "month", "note": "센터는 일 단위(YYYYMMDD)다. 앞 6자리로 월을 얻는다."},
+   {"key": "sex", "hub": "sex", "hub_candidates": ["sex", "성별", "gender"], "center": "sex", "unit": "sex", "note": "센터는 '남성, 여성'."},
+   {"key": "age", "hub": "age_range", "hub_candidates": ["age_range", "연령대", "age", "age_group"], "center": "age", "unit": "age", "note": "센터는 2022-06 까지 KT 10세 단위(00~80), 2022-07 부터 SKT 5세 단위(0009~7000)다. 520 실물은 '10세 미만', '10대' … '70대 이상' 8개 이름으로 적혀 있으나 원래 구간마다 줄이 따로 있어(같은 연령대 이름이 두 줄) 더해서 쓴다. age_bundle 대로 묶인 것으로 보인다."},
+   {"key": "time", "hub": "time_range", "hub_candidates": ["time_range", "시간대", "시간", "time"], "center": "time", "unit": "slot", "note": "센터 명세서는 01~24시(정각에 잰 값). 520 실물은 2022-06 까지 '01시'~'24시', 2022-07 부터 '00시'~'23시'로 적는다(자정 표기가 바뀜). 카드의 5구간과 나란히 놓으려면 묶어야 한다."},
+   {"key": "visit", "hub": "visit_population_count", "hub_candidates": ["visit_population_count", "방문인구", "방문인구수", "visit_pop_cnt"], "center": "visit_pop_cnt", "unit": null, "note": "사람 수가 아니라 체류량에 가깝다(시각마다 잰 값을 더한 것). 실물 값에 소수가 있다."}
+  ],
+  "age_bundle": {
+   "10대": {"kt": ["10"], "skt": ["1014", "1519"]},
+   "20대": {"kt": ["20"], "skt": ["2024", "2529"]},
+   "30대": {"kt": ["30"], "skt": ["3034", "3539"]},
+   "40대": {"kt": ["40"], "skt": ["4044", "4549"]},
+   "50대": {"kt": ["50"], "skt": ["5054", "5559"]},
+   "60대": {"kt": ["60"], "skt": ["6064", "6569"]},
+   "70대 이상": {"kt": ["70", "80"], "skt": ["7000"]}
+  },
+  "split": {"ym": "2022-07", "note": "2022-07 에 제공처가 KT 에서 SKT 로 바뀌었다(4-10 설명란). 계절 지수는 앞뒤를 나눠 계산한다."},
+  "basis": [
+   "520 의 끝 달(2025-04)이 센터 4-10(내국인 유동인구(읍면동)_v01)의 끝과 같다.",
+   "시간(01~24시)·성별·연령대·방문인구 축이 4-10 과 겹친다.",
+   "520 실물의 달마다 줄 수가 2022-06 까지 432줄(성별 2 × 시각 24 × KT 연령 9구간), 2022-07 부터 672줄(2 × 24 × SKT 14구간)로 4-10 참고표의 연령 구간 수와 맞는다."
+  ],
+  "unverified": [
+   "520 의 값이 센터 visit_pop_cnt 의 월 합계인지 평균인지, 거주지 '그외'만 센 값인지 확인하지 못했다.",
+   "520 과 4-11(v02, 2025-05 시작)은 겹치는 달이 없다."
+  ]
+ }
+}

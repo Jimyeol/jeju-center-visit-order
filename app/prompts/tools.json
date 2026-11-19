@@ -1,0 +1,98 @@
+[
+ {
+  "name": "public_scope",
+  "description": "허브 공개 데이터 2종(1048 업종별 성별 카드 이용 정보, 520 제주도 방문 내국인 유동인구 추이)이 가진 단위, 없는 단위, 기간, 업종 이름 42개를 돌려준다. 목적 문장을 읽은 뒤 가장 먼저 한 번 부른다. 업종 이름은 여기서 돌려준 것만 쓴다.",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "public_monthly",
+  "description": "허브 공개 데이터를 조건으로 걸러 도 전체 월별 흐름, 1~12월 계절 지수, 많은 달·적은 달·평균에 가까운 달, 비중 표를 코드가 계산해 돌려준다. 카드 소비 목적이면 source 를 1048 로, 방문·유동인구 목적이면 520 으로 부른다. available 이 false 이면 공개 데이터로는 답할 수 없다는 뜻이고 reason 에 이유가 있다.",
+  "input_schema": {
+   "type": "object",
+   "properties": {
+    "source": {"type": "string", "enum": ["1048", "520"], "description": "1048: 카드(업종·이용자구분·성별). 520: 방문 내국인(성별·연령대·시간)."},
+    "biz": {"type": "string", "description": "업종 이름(public_scope 의 업종 이름 가운데 하나) 또는 업종코드. 1048 에서만 쓴다. 비우면 전체 업종."},
+    "who": {"type": "string", "enum": ["all", "resident", "domestic", "foreign"], "description": "이용자 범위. 비우면 all."},
+    "sex": {"type": "string", "enum": ["남성", "여성"], "description": "성별로 거를 때만."},
+    "age": {"type": "string", "enum": ["10대", "20대", "30대", "40대", "50대", "60대", "70대 이상"], "description": "연령대로 거를 때만. 520 에서만 쓴다."},
+    "metric": {"type": "string", "enum": ["use_amt", "use_cnt", "user_cnt"], "description": "1048 의 수치. 비우면 이용금액(use_amt)."}
+   },
+   "required": ["source"],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "catalog_search",
+  "description": "센터 데이터 명세서에서 필요한 단위를 채우는 후보 데이터를 찾는다. 후보마다 채우는 단위(covers), 못 채우는 단위(missing), 값 체계 때문에 생기는 빈틈(value_gaps), 수록 기간, 반출 가능 여부를 돌려주고, 버린 후보와 그 이유(rejected), 어떤 데이터로도 못 메우는 단위(no_data), 한 데이터로 되는지(mode: single) 타협이 필요한지(mode: compromise, suggestion.alternatives 에 두 안)를 알려 준다. 공개 데이터에 없는 단위가 하나라도 있으면 부른다. understood 에는 지역과 업종이 어떻게 읽혔는지가 들어 있다.",
+  "input_schema": {
+   "type": "object",
+   "properties": {
+    "units": {"type": "array", "items": {"type": "string", "enum": ["dow", "slot", "age", "sex", "user_type", "nationality"]}, "maxItems": 6, "description": "더 보고 싶은 단위. dow 요일, slot 시간대, age 연령대, sex 성별, user_type 이용자구분, nationality 국적. 지역과 업종은 여기 넣지 않고 region, biz 로 준다."},
+    "subject": {"type": "string", "enum": ["spend", "visit"], "description": "spend 업종별 카드 소비, visit 방문·유동인구."},
+    "region": {"type": "string", "description": "지역 이름. 예: 노형동, 애월읍, 성산읍, 제주시 동부. 도 전체면 비운다."},
+    "biz": {"type": "string", "description": "업종 이름 또는 업종코드. 방문·유동인구 목적이면 비운다."},
+    "who": {"type": "string", "enum": ["all", "resident", "domestic", "foreign"]},
+    "focus": {"type": "object", "description": "문장에 콕 집어 적힌 값.", "properties": {
+      "dow": {"type": "array", "items": {"type": "string", "enum": ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일", "공휴일"]}},
+      "slot": {"type": "array", "items": {"type": "string", "enum": ["오전", "점심", "오후", "저녁", "밤"]}},
+      "age": {"type": "array", "items": {"type": "string", "enum": ["10대", "20대", "30대", "40대", "50대", "60대", "70대 이상"]}}
+     }, "additionalProperties": false},
+    "cross": {"type": "boolean", "description": "요일과 시간대를 한 표에서 함께 봐야 하면 true."}
+   },
+   "required": ["units", "subject"],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "pick_months",
+  "description": "주문할 센터 데이터 하나에 대해 받을 달을 고른다. 공개 데이터의 계절 지수에서 많은 달·적은 달·평균에 가까운 달을 고르고, 연도는 그 데이터의 수록 범위 안에서 가장 최근 것으로 맞춘다. catalog_search 로 데이터를 고른 뒤, 고른 데이터마다 한 번씩 부른다.",
+  "input_schema": {
+   "type": "object",
+   "properties": {
+    "dataset_no": {"type": "string", "description": "센터 데이터 번호. 예: 1-14"},
+    "subject": {"type": "string", "enum": ["spend", "visit"]},
+    "biz": {"type": "string", "description": "업종 이름 또는 업종코드(카드 소비 목적일 때)."},
+    "who": {"type": "string", "enum": ["all", "resident", "domestic", "foreign"]}
+   },
+   "required": ["dataset_no"],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "submit_order",
+  "description": "주문서 초안을 낸다. 코드가 명세서와 대조해(데이터 번호, 받을 달이 수록 범위 안인지, 조건의 컬럼과 값, 쓸 컬럼, 내려받기 횟수 상한, 필요한 단위가 채워졌는지) 결과를 돌려준다. ok 가 false 이면 issues 에 적힌 줄만 고쳐서 다시 부른다(고칠 기회는 두 번). ok 가 true 이면 주문서가 확정된 것이므로 더 부르지 않는다. 일을 끝내려면 반드시 이 도구를 부른다.",
+  "input_schema": {
+   "type": "object",
+   "properties": {
+    "need": {"type": "object", "description": "목적 문장에서 읽어 낸 것.", "properties": {
+      "subject": {"type": "string", "enum": ["spend", "visit"]},
+      "region": {"type": "string", "description": "지역 이름. 도 전체면 비운다."},
+      "biz": {"type": "string", "description": "업종 이름 또는 업종코드. 방문·유동인구면 비운다."},
+      "who": {"type": "string", "enum": ["all", "resident", "domestic", "foreign"]},
+      "units": {"type": "array", "items": {"type": "string", "enum": ["dow", "slot", "age", "sex", "user_type", "nationality"]}, "maxItems": 6},
+      "focus": {"type": "object", "properties": {
+        "dow": {"type": "array", "items": {"type": "string", "enum": ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일", "공휴일"]}},
+        "slot": {"type": "array", "items": {"type": "string", "enum": ["오전", "점심", "오후", "저녁", "밤"]}},
+        "age": {"type": "array", "items": {"type": "string", "enum": ["10대", "20대", "30대", "40대", "50대", "60대", "70대 이상"]}}
+       }, "additionalProperties": false},
+      "cross": {"type": "boolean"}
+     }, "required": ["subject", "who", "units"], "additionalProperties": false},
+    "items": {"type": "array", "maxItems": 4, "description": "주문 항목. 센터에서 받을 것이 없으면 빈 목록.", "items": {"type": "object", "properties": {
+      "dataset_no": {"type": "string", "description": "catalog_search 후보에 나온 번호."},
+      "months": {"type": "array", "maxItems": 6, "items": {"type": "string"}, "description": "받을 달(연-월, 예: 2024-08). pick_months 결과를 그대로. 비우면 코드가 채운다."},
+      "conditions": {"type": "array", "maxItems": 8, "description": "보통 비운다(코드가 명세서에서 채운다).", "items": {"type": "object", "properties": {
+        "column": {"type": "string"}, "value": {"type": "string"}}, "required": ["column", "value"], "additionalProperties": false}},
+      "use_columns": {"type": "array", "maxItems": 20, "items": {"type": "string"}, "description": "보통 비운다(코드가 명세서에서 채운다)."},
+      "why": {"type": "string", "description": "이 데이터를 고른 이유와 비슷한 다른 데이터를 버린 이유. 숫자를 쓰지 않는다."}
+     }, "required": ["dataset_no", "why"], "additionalProperties": false}},
+    "choose": {"type": "string", "enum": ["split", "single"], "description": "타협이 필요할 때 먼저 권하는 안. items 와 같은 안을 가리켜야 한다."}
+   },
+   "required": ["need", "items"],
+   "additionalProperties": false
+  }
+ }
+]

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>데이터 활용 명세</title>
+<style>
+body { font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+       line-height: 1.6; color: #1c1c1c; background: #fff; max-width: 60em; margin: 0 auto; padding: 1.5em 1.2em 4em; }
+h1 { font-size: 1.7em; border-bottom: 2px solid #1c1c1c; padding-bottom: .2em; }
+h2 { font-size: 1.3em; margin-top: 2em; border-bottom: 1px solid #999; padding-bottom: .15em; }
+h3 { font-size: 1.1em; margin-top: 1.6em; }
+h4 { font-size: 1em; margin-top: 1.3em; }
+table { border-collapse: collapse; margin: .8em 0; width: 100%; }
+th, td { border: 1px solid #888; padding: .3em .6em; vertical-align: top; text-align: left; }
+th { background: #eee; }
+code { font-family: Consolas, "D2Coding", Menlo, monospace; background: #f1f1f1; padding: 0 .25em; font-size: .93em; }
+pre { background: #f1f1f1; border: 1px solid #ccc; padding: .7em 1em; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: .8em 0; padding: .1em 1em; border-left: 4px solid #999; background: #f7f7f7; }
+hr { border: 0; border-top: 1px solid #999; margin: 1.6em 0; }
+ul, ol { padding-left: 1.6em; }
+a { color: #0b4f9e; }
+.made { color: #555; font-size: .85em; margin-top: 3em; border-top: 1px solid #ccc; padding-top: .5em; }
+@media print { body { max-width: none; padding: 0; font-size: 10pt; } a { color: inherit; text-decoration: none; } pre, table, blockquote { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<h1>데이터 활용 명세</h1>
+<p>센터 방문 주문서가 쓰는 데이터의 출처, 이용조건, 쓴 컬럼, 전처리, 분석 흐름, 한계를 적는다. 이 문서의 행 수·기간·종수는 2026-11-17 에 동봉한 파일을 프로그램과 스크립트로 직접 세어 확인한 값이다.</p>
+<h2>1. 한눈에 보기</h2>
+<table><thead><tr><th>구분</th><th>데이터</th><th>실물인가</th><th>폴더</th><th>프로그램에서 하는 일</th></tr></thead><tbody>
+<tr><td>필수 데이터</td><td>제주데이터허브 1048 업종별 성별 카드 이용 정보</td><td>실물(허브에서 받은 CSV 그대로)</td><td><code>data/public/</code></td><td>도 전체 월별 추이, 계절 지수, 이용자구분·성별 비중 계산. 받을 달 3개 고르기. 재분석의 대조 기준</td></tr>
+<tr><td>필수 데이터</td><td>제주데이터허브 520 제주도 방문 내국인 유동인구 추이</td><td>실물(허브에서 받은 CSV 그대로)</td><td><code>data/public/</code></td><td>방문·유동인구 목적의 월별 추이, 계절 지수, 시간대·연령대·성별 비중. 받을 달 고르기</td></tr>
+<tr><td>센터 공개 자료</td><td>제주빅데이터센터 데이터 명세서 v13</td><td>실물(공개된 xlsx 그대로)</td><td><code>data/spec/</code></td><td>데이터 71종의 컬럼·수록 기간·반출 가부·참고표를 읽어 짝짓기와 검증의 기준으로 씀</td></tr>
+<tr><td>센터 공개 자료</td><td>제주빅데이터센터 데이터 반출 정책(개정 2026-09-01)</td><td>문서는 넣지 않고 줄만 옮김</td><td><code>app/config.py</code></td><td>주문서의 "반출 주의" 줄, 10 미만 가리기 기준</td></tr>
+<tr><td>공개 Open API</td><td>제주데이터허브 583 읍면동 단위 내국인 유동인구 (제공기관: 제주데이터허브, 이용조건: 허브 공개 데이터)</td><td>실시간 호출(저장하지 않음)</td><td>없음(<code>app/local_api.py</code>)</td><td>받을 목록의 "동네 미리 보기": 그 읍면동의 가장 최근 달 말일 거주·근무·방문 비중, 방문이 가장 많은 연령대</td></tr>
+<tr><td>외부 Open API</td><td>소상공인시장진흥공단 상가(상권)정보 (제공기관: 소상공인시장진흥공단, 출처: 공공데이터포털, 이용조건: 공공데이터포털 이용허락 범위)</td><td>실시간 호출(저장하지 않음)</td><td>없음(<code>app/local_api.py</code>)</td><td>그 행정동·업종 중분류의 상가 수</td></tr>
+<tr><td>외부 Open API</td><td>소상공인365 간단분석 (제공기관: 소상공인시장진흥공단, 출처: bigdata.sbiz.or.kr, 이용조건: 발급 인증키, 활용목적 공모전)</td><td>화면 연결(값을 받지 않음)</td><td>없음</td><td>"소상공인365 간단분석에서 상권 더 보기" 버튼이 인증키가 붙은 분석 화면을 새 창으로 연다</td></tr>
+<tr><td>시연용</td><td>가상 센터 CSV 3종</td><td><strong>가상</strong>(직접 만든 파일)</td><td><code>data/sample_center/</code></td><td>"내려받은 CSV 넣기" 시연</td></tr>
+<tr><td>직접 만든 보조 표</td><td>단위 표시, 허브·센터 컬럼 대응표, 낱말 사전</td><td>직접 작성</td><td><code>data/spec/</code></td><td>컬럼의 뜻, 허브와 센터 컬럼의 짝, 규칙 모드의 문장 해석</td></tr>
+</tbody></table>
+<ul>
+<li>허브 공개 데이터 2종은 <strong>실물 파일</strong>이다. 대체 파일이나 표본이 아니다. 화면 오른쪽 위에 "공개 데이터: 대체 파일로 계산 중"이 뜨지 않고, "프로그램 상태"를 눌렀을 때 공개 데이터 줄에 실물 파일 이름(업종별성별카드이용정보.csv, 제주도방문내국인유동인구추이.csv)이 나오면 실물로 계산하고 있는 것이다.
+</li>
+<li>센터 방문 데이터(비공개)는 쓰지 않았다. 센터를 방문하지 않아 실제 센터 CSV 는 한 번도 보지 못했다.
+</li>
+<li>대회 페이지가 제공한 xlsx 2종("제주데이터허브 데이터목록", "예시데이터 및 컬럼확인용")은 쓰지 않았고 폴더에 넣지 않았다.
+</li></ul>
+<h2>2. 필수 데이터: 제주데이터허브 공개 데이터 2종</h2>
+<h3>2.1 허브 1048 업종별 성별 카드 이용 정보</h3>
+<table><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>
+<tr><td>허브 등록 데이터명</td><td>[소비, 경제] 업종별 성별 카드 이용 정보 (FILE 형)</td></tr>
+<tr><td>주소</td><td>https://jejudatahub.net/data/view/data/1048</td></tr>
+<tr><td>제공처</td><td>허브 상세 페이지 표기 "데이터 제공처 : 제주빅데이터센터"</td></tr>
+<tr><td>허브 표기</td><td>등록일 2021-12-13, 수정일 2025-10-24, 수집기간 2018-01-01 ~ 2025-06-30</td></tr>
+<tr><td>취득 방법과 취득일</td><td>2026-11-17, 허브에 로그인해 상세 페이지의 첨부파일 <code>업종별성별카드이용정보.csv</code>(1.9MB, 등록일 2025-10-24)를 내려받음. Open API 는 쓰지 않았다.</td></tr>
+<tr><td>동봉 파일</td><td><code>data/public/업종별성별카드이용정보.csv</code>, 1,998,040바이트, 받은 그대로(가공 없음). SHA-256 앞 16자리 <code>518cd18e78141ede</code></td></tr>
+<tr><td>형식</td><td>UTF-8(BOM 있음), CRLF, 쉼표 구분, 헤더 1줄 + 28,255행</td></tr>
+<tr><td>수록 기간</td><td>2018-01 ~ 2025-06 (90개월)</td></tr>
+<tr><td>단위</td><td>도 전체 × 월 × 업종 × 이용자구분 × 성별. 지역 구분 없음</td></tr>
+</tbody></table>
+<p>쓴 컬럼(7개 전부):</p>
+<table><thead><tr><th>파일의 컬럼명</th><th>허브 화면 이름</th><th>값</th><th>쓰임</th></tr></thead><tbody>
+<tr><td><code>base_year_month</code></td><td>연월</td><td>201801 ~ 202506</td><td>월별 집계의 축</td></tr>
+<tr><td><code>biz_nm</code></td><td>업종명</td><td>42개 업종(파일에는 43가지 표기)</td><td>목적의 업종으로 거르기</td></tr>
+<tr><td><code>user_type</code></td><td>이용자구분</td><td>제주도민, 내국인, 법인, 중국, 일본, 동남아, 기타외국</td><td>대상 거르기, 이용자구분 비중</td></tr>
+<tr><td><code>sex</code></td><td>성별</td><td>남성, 여성, 알수없음</td><td>성별 비중</td></tr>
+<tr><td><code>user_count</code></td><td>이용자수</td><td>정수</td><td>월별 값으로만 씀(여러 달을 더하지 않는다)</td></tr>
+<tr><td><code>use_count</code></td><td>이용건수</td><td>정수</td><td>월별 집계, 가상 CSV 의 뼈대</td></tr>
+<tr><td><code>use_amount</code></td><td>이용금액</td><td>정수(원)</td><td>월별 추이와 계절 지수의 기본 지표, 재분석 대조 줄의 기준</td></tr>
+</tbody></table>
+<h3>2.2 허브 520 제주도 방문 내국인 유동인구 추이</h3>
+<table><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>
+<tr><td>허브 등록 데이터명</td><td>[인구, 생활] 제주도 방문 내국인 유동인구 추이 (FILE 형)</td></tr>
+<tr><td>주소</td><td>https://jejudatahub.net/data/view/data/520</td></tr>
+<tr><td>제공처</td><td>허브 상세 페이지에 제공처 줄이 따로 없다. 첨부파일 등록자는 "제주데이터허브"로 적혀 있다.</td></tr>
+<tr><td>허브 표기</td><td>등록일 2021-01-18, 수정일 2025-10-24, 수집기간 2018-01-01 ~ 2025-04-30</td></tr>
+<tr><td>허브의 설명</td><td>"방문인구는 해당 유동인구 수의 연월별 합계", "유동인구는 01~24시 해당 시간 정각 측정 인구 (머문 시간(분)/60분)"</td></tr>
+<tr><td>취득 방법과 취득일</td><td>2026-11-17, 허브에 로그인해 상세 페이지의 첨부파일 <code>제주도방문내국인유동인구추이.csv</code>(1.6MB, 등록일 2025-10-24)를 내려받음</td></tr>
+<tr><td>동봉 파일</td><td><code>data/public/제주도방문내국인유동인구추이.csv</code>, 1,687,682바이트, 받은 그대로. SHA-256 앞 16자리 <code>620062ba52c41125</code></td></tr>
+<tr><td>형식</td><td>UTF-8(BOM 있음), CRLF, 쉼표 구분, 헤더 1줄 + 46,176행</td></tr>
+<tr><td>수록 기간</td><td>2018-01 ~ 2025-04 (88개월)</td></tr>
+<tr><td>단위</td><td>도 전체 × 월 × 성별 × 연령대 × 시각</td></tr>
+</tbody></table>
+<p>쓴 컬럼(5개 전부):</p>
+<table><thead><tr><th>파일의 컬럼명</th><th>값</th><th>쓰임</th></tr></thead><tbody>
+<tr><td><code>base_year_month</code></td><td>201801 ~ 202504</td><td>월별 집계의 축</td></tr>
+<tr><td><code>sex</code></td><td>남성, 여성</td><td>성별 비중</td></tr>
+<tr><td><code>age_range</code></td><td>10세 미만, 10대 ~ 60대, 70대 이상(8가지)</td><td>연령대 비중, 연령대로 거르기</td></tr>
+<tr><td><code>time_range</code></td><td>2022-06 까지 01시 ~ 24시, 2022-07 부터 00시 ~ 23시</td><td>시간대 비중(카드의 5구간으로 묶음)</td></tr>
+<tr><td><code>visit_population_count</code></td><td>소수(정수부 5~7자리)</td><td>월별 추이와 계절 지수</td></tr>
+</tbody></table>
+<h3>2.3 이용조건</h3>
+<table><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>
+<tr><td>허브 페이지의 이용조건 표기</td><td>두 데이터의 상세 페이지에 이용조건·공공누리 유형 표기가 없다(2026-11-17 확인).</td></tr>
+<tr><td>운영진 답변(대회 게시판 43번)</td><td>허브에서 제공되는 공개 데이터는 제출 zip 에 넣을 수 있다. 「공공데이터의 제공 및 이용 활성화에 관한 법률」과 시행령에 맞춰 활용한다. 출처와 전처리·적재 방식을 데이터 활용 명세에 적는다.</td></tr>
+<tr><td>운영진 답변(대회 게시판 39번)</td><td>제출물을 센터 밖에 공개할 때는 허브 원문 자료를 함께 넣어 배포하지 말고 출처와 원문 링크를 적어 직접 내려받게 안내한다.</td></tr>
+<tr><td>이 제출물의 처리</td><td>원본 CSV 를 고치지 않고 제출 zip 에만 넣었다. GitHub 등 외부 저장소에 올리지 않았다. 화면에 출처(허브 번호와 데이터명, 기간)를 표시한다(2단계 "공개 데이터로 먼저 본 흐름"의 "출처와 계산 방법").</td></tr>
+<tr><td>센터 밖에 배포할 경우</td><td><code>data/public/</code> 을 비우고 "제주데이터허브 1048, 520 상세 페이지에서 첨부 CSV 를 받아 <code>data/public/</code> 에 넣는다"로 안내하면 된다. 프로그램은 파일 이름이 아니라 첫 줄(컬럼 이름)로 두 파일을 알아본다.</td></tr>
+</tbody></table>
+<h2>3. 제주빅데이터센터 데이터 명세서 v13</h2>
+<table><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>
+<tr><td>자료</td><td>제주빅데이터센터 데이터 명세서 <code>데이터명세서_kr.xlsx</code>, v13(2026-11-04)</td></tr>
+<tr><td>출처</td><td>제주데이터허브 &gt; 제주빅데이터센터 &gt; 제공데이터 화면 https://jejudatahub.net/center/data (로그인 없이 받을 수 있는 공개 자료)</td></tr>
+<tr><td>취득일</td><td>2026-11-17</td></tr>
+<tr><td>이용조건</td><td>운영진 답변(대회 게시판 45번): 외부에 공개된 자료이므로 원본 엑셀 파일을 제출 zip 에 넣을 수 있다.</td></tr>
+<tr><td>동봉 파일</td><td><code>data/spec/데이터명세서_kr.xlsx</code>, 3,174,101바이트, 받은 그대로. SHA-256 앞 16자리 <code>f8d95532b05462c4</code></td></tr>
+<tr><td>변환</td><td><code>tools/build_spec.py</code> 가 <code>zipfile</code> 과 <code>xml.etree</code> 로 읽어 <code>data/spec/spec.json</code> 을 만든다. 같은 입력이면 같은 출력이 나온다. <code>--check</code> 로 다시 변환해 같은지 확인할 수 있다.</td></tr>
+</tbody></table>
+<p>프로그램이 센 값(<code>python3 tools/build_spec.py --check</code> 출력):</p>
+<table><thead><tr><th>항목</th><th>값</th></tr></thead><tbody>
+<tr><td>표기</td><td>명세서 v13(2026-11-04) 기준 데이터 71종, 참고표 2종</td></tr>
+<tr><td>시트</td><td>74개</td></tr>
+<tr><td>컬럼</td><td>906개(파티션 컬럼 136개 포함)</td></tr>
+<tr><td>카테고리별</td><td>경제 32, 기업 8, 교통 10, 통신 15, 환경 6</td></tr>
+<tr><td>반출 표기</td><td>가능 22, 불가능 49</td></tr>
+<tr><td>수록 기간을 달 범위로 판정할 수 있는 데이터</td><td>48종</td></tr>
+<tr><td>컬럼 이름이 서로 같은 묶음</td><td>4개(1-02·1-05, 1-03·1-06, 2-01·2-02, 5-05·5-06)</td></tr>
+<tr><td>목록 시트와 데이터 시트가 다른 곳</td><td>7건(유동인구 6종의 제공처, 5-06 의 이름)</td></tr>
+</tbody></table>
+<p>명세서에서 읽어 쓰는 항목: 데이터 번호와 이름, 카테고리, 반출 가부와 문구, 제공처, 수록 기간, 설명, 컬럼(번호·영문명·한글명·형식·예시·비고), 시트 안의 참고표(법정동, 업종코드, 시간대, 연령대 등), 참고표 시트.</p>
+<p>변환할 때 흡수한 것:</p>
+<table><thead><tr><th>명세서의 모양</th><th>처리</th></tr></thead><tbody>
+<tr><td>목록 시트와 데이터 시트의 제공처가 다른 곳이 있다</td><td>각 데이터 시트의 값을 쓴다.</td></tr>
+<tr><td>예시값에 틀린 조합이 있다(예: 업종코드와 업종명이 어긋남)</td><td>예시값이 아니라 참고표를 기준으로 삼는다.</td></tr>
+<tr><td>머리글 표기가 두 가지이고 한 시트는 한 행 밀려 있다</td><td>둘 다 읽는다.</td></tr>
+<tr><td>기간 표기가 여러 가지다("~ 현재까지", 구간 두 개, 시점 한 번 등)</td><td>달 범위로 바꿀 수 있는 것만 범위로 쓰고, 못 바꾸는 것은 주문서에 "수록 기간이 명세서에 없음"으로 적는다.</td></tr>
+<tr><td>컬럼명 뒤에 공백이 붙은 곳이 있다</td><td>지우고 읽는다.</td></tr>
+<tr><td>파티션 컬럼(pt_year, pt_month)</td><td>표시만 하고 "쓸 컬럼"과 조건에서 뺀다.</td></tr>
+<tr><td>메뉴코드표(4,889행)</td><td>값은 싣지 않고 행 수만 적는다(메뉴 단위 분석은 범위 밖).</td></tr>
+</tbody></table>
+<h2>4. 반출 기준 문서</h2>
+<table><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>
+<tr><td>자료</td><td>제주빅데이터센터 데이터 반출 정책(개정 2026. 09. 01.)</td></tr>
+<tr><td>출처</td><td>제주데이터허브 공지 48 https://jejudatahub.net/community/notice/view/48 의 첨부 PDF</td></tr>
+<tr><td>쓰임</td><td>주문서 "반출 주의"에 넣는 줄(원본·발췌 반출 불가, 텍스트·엑셀 원칙적 불가와 응용집계 예외, 단순집계 10 미만 기준, 시각화는 캡처한 그림으로, 출처 표기, 영리 목적 협의)과 재분석 표의 10 미만 가리기 기준</td></tr>
+<tr><td>동봉 여부</td><td>PDF 원문은 넣지 않았다. <code>app/config.py</code> 에 위 줄을 옮겨 적고 출처를 함께 표시한다.</td></tr>
+</tbody></table>
+<p>프로그램의 가리기는 이 기준을 따르려는 보조 장치다. 반출 가부는 센터의 반출 심사가 정한다.</p>
+<h2>5. 가상 센터 CSV</h2>
+<p><strong>이 폴더(<code>data/sample_center/</code>)의 CSV 는 실제 제주빅데이터센터 데이터가 아니다.</strong> 센터 데이터는 방문해야만 받을 수 있어, 명세서(v13)의 컬럼과 참고표대로 만든 파일로 화면 3단계 "받은 파일"을 보여 준다. 화면에서도 이 파일을 넣으면 결과 카드에 "연습용 가상 파일"이라고 표시된다(파일의 해시가 <code>manifest.json</code> 과 같을 때).</p>
+<table><thead><tr><th>파일</th><th>흉내 낸 데이터</th><th>달</th><th>업종</th><th>줄 수</th></tr></thead><tbody>
+<tr><td><code>Results_20261117_101502.csv</code></td><td>1-14 카드 이용 현황(시간대)_v02</td><td>2024-08</td><td>I56111 한식 음식점업</td><td>14,927</td></tr>
+<tr><td><code>Results_20261117_101845.csv</code></td><td>1-12 카드 이용 현황(요일별)_v02</td><td>2024-08</td><td>I56220 비알콜 음료점업</td><td>18,900</td></tr>
+<tr><td><code>Results_20261117_102211.csv</code></td><td>1-08 카드 이용 현황(읍면동)_v02</td><td>2024-08</td><td>I56111 한식 음식점업</td><td>3,629</td></tr>
+</tbody></table>
+<table><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>
+<tr><td>생성 스크립트</td><td><code>tools/make_sample_center.py</code></td></tr>
+<tr><td>시드</td><td>20261117(고정). 다시 돌리면 같은 파일이 나온다.</td></tr>
+<tr><td>값의 뼈대</td><td>허브 1048 의 그 달·그 업종 도 전체 값을 이용자구분 × 성별 칸마다 법정동·관광구분·연령대·시간대(또는 요일)로 쪼갰다. 그래서 파일의 이용건수·이용금액 합계가 공개 값과 같고, 법정동 73곳이 모두 든 파일(1-14, 1-08)에서는 화면의 대조 줄이 0.0% 로 나온다. <strong>이것은 그렇게 만들었기 때문이지 실제 센터 데이터가 그렇다는 증거가 아니다.</strong> 화면의 대조 줄에도 같은 말이 나온다.</td></tr>
+<tr><td>든 법정동</td><td>업종 조건만 걸고 지역 조건은 걸지 않은 꼴이다. 1-14 파일과 1-08 파일은 73곳 모두, 1-12 파일은 72곳(가중치가 가장 작은 영남동은 쪼갠 값이 0 이 되어 줄이 없다).</td></tr>
+<tr><td>지어낸 것</td><td>법정동별 크기, 시간대·요일·연령대 분포, 법정동이 드는 권역(명세서에 대응표가 없다), 이용자수(이용건수를 1.0~1.9 로 나눈 값)</td></tr>
+<tr><td>일부러 넣은 것</td><td>작은 법정동과 외국인 칸의 10 미만 값(가리기를 보여 주려고)</td></tr>
+<tr><td>형식</td><td>운영진이 게시판 40번에서 밝힌 규칙대로: UTF-8(BOM 없음), 쉼표 구분, 모든 값 큰따옴표, 파일명 <code>Results_날짜_시간.csv</code>, 파티션 컬럼 없음(47번 답변은 "포함"이라 했으나 40번 1항에서 "내려받은 CSV 에 포함되지 않는다"고 정정했다). 결측은 <code>NA</code>. 헤더는 명세서의 영문 컬럼명</td></tr>
+<tr><td>확인하지 못한 것</td><td>실제 파일의 컬럼 순서, 줄 수, 조건을 걸어 받았을 때의 모양. 프로그램은 순서가 달라도 컬럼명으로 읽는다.</td></tr>
+</tbody></table>
+<p>자세한 설명은 <code>data/sample_center/가상데이터_설명.md</code> 와 <code>manifest.json</code>(파일별 합계와 해시)에 있다.</p>
+<h2>6. 직접 만든 보조 표</h2>
+<p>명세서에 없어서 손으로 붙인 것이다. 외부 자료를 가져온 것이 아니다.</p>
+<table><thead><tr><th>파일</th><th>내용</th><th>근거 표시</th></tr></thead><tbody>
+<tr><td><code>data/spec/dim_tags.json</code></td><td>컬럼명에 붙인 뜻(지역: 권역·시·법정동·행정동·격자 등, 시간: 월·일·요일·시간대, 대상: 이용자구분·연령·성별·업종·국적 등), 값 체계(카드 시간대 5구간, 포스 7구간, 유동인구 24시 등), 데이터 계열</td><td>줄마다 명세서의 시트·컬럼·비고를 적었다.</td></tr>
+<tr><td><code>data/spec/hub_center_map.json</code></td><td>허브 1048·520 의 컬럼과 센터 컬럼의 짝, 표기 차이, 확인하지 못한 것</td><td>근거(<code>basis</code>)와 미확인(<code>unverified</code>)을 나눠 적었다.</td></tr>
+<tr><td><code>data/spec/aliases.json</code></td><td>규칙 모드의 낱말 사전(한식당 → 한식 음식점업 등), 카드 업종과 포스 업종코드표의 짝</td><td>대응한 업종코드는 명세서 참고표에 있는 것만 쓴다(시험에서 확인). 낱말과 업종의 짝은 만든 사람이 붙였다.</td></tr>
+</tbody></table>
+<h2>7. 전처리</h2>
+<p>원본 파일은 고치지 않는다. 아래는 프로그램이 읽을 때 메모리 안에서 하는 일이다(<code>app/public_data.py</code>, <code>app/center_csv.py</code>).</p>
+<h3>7.1 허브 1048</h3>
+<table><thead><tr><th>원본의 모양</th><th>처리</th></tr></thead><tbody>
+<tr><td>BOM 이 붙은 UTF-8</td><td><code>utf-8-sig</code> 로 먼저 읽고, 실패하면 <code>cp949</code> 로 읽는다.</td></tr>
+<tr><td>컬럼명이 허브 화면(한글)과 파일(영문)에서 다르다</td><td>컬럼을 이름 후보 목록으로 찾는다(<code>base_year_month</code>·연월, <code>biz_nm</code>·업종명 등).</td></tr>
+<tr><td>업종명 43가지 가운데 <code>기타음?식료품위주종합소매업</code>(2021-12 한 달)은 <code>기타음식료품위주종합소매업</code>의 깨진 표기다</td><td>업종명에서 공백·쉼표·물음표를 지우고 비교해 <strong>같은 업종으로 합쳐 읽는다.</strong> 합치면 센터 참고표와 같은 42개 업종이 된다.</td></tr>
+<tr><td><code>피자 햄버거 샌드위치 및 유사 음식점업</code>은 센터 참고표에서 쉼표가 있는 이름이다</td><td>위와 같은 비교로 같은 업종으로 본다.</td></tr>
+<tr><td>이용자수는 월별 값이다</td><td>여러 달을 더하지 않는다. 더하는 것은 이용건수와 이용금액뿐이다.</td></tr>
+<tr><td>달이 비는 업종이 있다(버스 운송업 9개월, 기타 갬블링 및 베팅업 71개월, 택시 운송업 79개월만 값이 있음)</td><td>그 업종은 계절 지수를 내지 않고 "자료가 모자람"으로 답한다. 받을 달은 업종 합계의 계절 지수로 고르고 그렇게 적는다.</td></tr>
+</tbody></table>
+<p>1048 은 (연월, 업종, 이용자구분, 성별) 키가 겹치는 줄이 없다. 외국인(중국·일본·동남아·기타외국)과 법인은 성별이 전부 "알수없음"이다.</p>
+<h3>7.2 허브 520</h3>
+<table><thead><tr><th>원본의 모양</th><th>처리</th></tr></thead><tbody>
+<tr><td><strong>같은 (연월, 성별, 연령대, 시각) 키가 여러 줄이다</strong>(겹치는 키 12,384개). 달마다 줄 수가 2022-06 까지 432줄, 2022-07 부터 672줄이다.</td><td><strong>같은 키의 값을 더해서 읽는다.</strong> 원자료의 더 잘게 나뉜 연령 구간이 8개 이름으로 묶이면서 줄이 합쳐지지 않은 것으로 보인다(추정). 한 줄만 쓰면 값이 틀린다.</td></tr>
+<tr><td>시각 표기가 2022-06 까지 <code>01시</code>~<code>24시</code>, 2022-07 부터 <code>00시</code>~<code>23시</code>다</td><td><code>24시</code>와 <code>00시</code>를 둘 다 자정으로 보고 밤 구간에 넣는다.</td></tr>
+<tr><td>2022-07 에 통신사가 바뀐다(명세서 4-10: KT → SKT)</td><td>계절 지수를 2022-07 앞뒤로 나눠 계산하고, 받을 달 고르기에는 2022-07 이후 구간을 쓴다.</td></tr>
+<tr><td>시각이 24개다</td><td>카드의 5구간(오전 07~11시, 점심 11~14시, 오후 14~18시, 저녁 18~22시, 밤 22시~07시. 명세서 1-14 참고표)으로 묶어 비중을 낸다.</td></tr>
+<tr><td>값이 소수다</td><td>소수로 읽어 더한다.</td></tr>
+</tbody></table>
+<h3>7.3 내려받은 센터 CSV</h3>
+<table><thead><tr><th>파일의 모양</th><th>처리</th></tr></thead><tbody>
+<tr><td>파일명이 <code>Results_날짜_시간.csv</code> 라 이름으로는 어떤 데이터인지 알 수 없다</td><td>첫 줄(컬럼 이름)을 명세서 71종과 대조해 알아본다.</td></tr>
+<tr><td>파티션 컬럼(pt_year, pt_month)</td><td>있어도 없어도 받는다.</td></tr>
+<tr><td>BOM, CP949(엑셀에서 다시 저장), 컬럼명 앞뒤 공백, 전부 따옴표</td><td>흡수하고 진단 줄에 적는다.</td></tr>
+<tr><td>결측 <code>NA</code></td><td>분류 칸은 "NA(알 수 없음)"으로 모으고, 수치 칸은 0 으로 보고 개수를 진단에 적는다.</td></tr>
+<tr><td>칸 수가 맞지 않는 줄, 숫자가 아닌 값</td><td>건너뛰거나 0 으로 보고 개수를 진단에 적는다.</td></tr>
+<tr><td>명세서와 다른 컬럼</td><td>멈추지 않고 가장 가까운 데이터와 "파일에만 있는 컬럼 / 파일에 없는 컬럼"을 진단으로 낸다. 같은 정도가 60% 미만이면 알아보지 못했다고 답한다.</td></tr>
+<tr><td>큰 파일</td><td>한 줄씩 읽어 집계한다(통째로 메모리에 올리지 않는다).</td></tr>
+</tbody></table>
+<h2>8. 분석 흐름</h2>
+<pre><code>목적(1단계: 문장으로 적기 또는 직접 고르기)
+  → 필요한 단위 결정(지역·업종·대상·요일·시간대·연령대 등)
+  → 공개 데이터 계산(허브 1048 또는 520): 월별 추이, 1~12월 계절 지수, 비중
+  → 빈칸 표시: 필요한 단위 가운데 공개 데이터에 없는 것
+  → 명세서 짝짓기: 빈칸 단위를 가진 센터 데이터를 컬럼 수준에서 찾기, 안 되면 두 안 비교, 없으면 "메울 데이터 없음"
+  → 받을 달 3개: 계절 지수의 많은 달·적은 달·평균에 가까운 달, 연도는 센터 데이터의 수록 범위 안에서
+  → 검증기: 데이터 번호·컬럼·조건 값·달을 명세서와 대조
+  → 주문서 한 장(2단계 화면, 인쇄)
+  → (센터에서 내려받은 뒤) 3단계에 CSV 넣기 → 헤더로 인식 → 같은 분석을 그 파일로 다시 계산 → 10 미만 가리기 → 허브 값과 대조 줄</code></pre>
+<h3>8.1 공개 데이터 계산 방법</h3>
+<table><thead><tr><th>계산</th><th>방법</th></tr></thead><tbody>
+<tr><td>월별 추이</td><td>목적의 업종(1048) 또는 대상(520)으로 거른 뒤 월마다 더한다. 1048 의 기본 지표는 이용금액이다.</td></tr>
+<tr><td>1~12월 계절 지수</td><td>12달이 다 있는 해마다 "그 달 값 ÷ 그 해 월평균"을 구하고, 달마다 여러 해의 평균을 낸다(평균 = 100). 1048 은 2018~2024 일곱 해, 520 은 2022-07 이후 구간에서 12달이 다 있는 2023·2024 두 해를 쓴다.</td></tr>
+<tr><td>많은 달·적은 달·평균에 가까운 달</td><td>계절 지수가 가장 큰 달, 가장 작은 달, 나머지 가운데 100 에 가장 가까운 달</td></tr>
+<tr><td>비중</td><td>최근 12개월의 이용자구분별·성별(1048), 시간대별·연령대별·성별(520) 비중</td></tr>
+<tr><td>받을 달의 연도</td><td>(1) 센터 데이터의 수록 범위와 공개 데이터 기간이 겹치면 그 범위에서 가장 최근 해(공개 값과 대조할 수 있다). (2) 겹치는 달이 없으면 수록 범위 안에서 가장 최근 해. 끝이 "현재까지"면 오늘 기준 3개월 앞선 달까지 있다고 가정하고 주문서에 그렇게 적는다.</td></tr>
+</tbody></table>
+<p>예: 시나리오 1(노형동 한식당)의 한식 음식점업 계절 지수는 8월 110.0(많은 달), 2월 87.7(적은 달), 4월 100.7(평균에 가까운 달)이고, 1-14(2023-08 ~ 현재까지)와 1048(~2025-06)이 겹치는 범위에서 가장 최근 해로 맞춰 받을 달이 2024-08, 2025-02, 2025-04 가 된다.</p>
+<h3>8.2 재분석(내려받은 CSV)</h3>
+<table><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>
+<tr><td>대상</td><td>카드 이용 현황 v02 계열 3종: 1-08(읍면동), 1-12(요일별), 1-14(시간대)</td></tr>
+<tr><td>범위</td><td>주문서의 지역(법정동)과 업종으로 거른다. 주문서가 없으면 파일 전체로 계산한다.</td></tr>
+<tr><td>응용집계(먼저 보임)</td><td>시간대별 또는 요일별 비중과 순위, 이용자구분별·연령대별 비중, 법정동별 비중과 순위(상위 10곳과 요청한 곳)</td></tr>
+<tr><td>단순집계(뒤에 보임)</td><td>시간대(요일)별 이용건수·이용금액, 시간대(요일) × 이용자구분, 시간대(요일) × 연령대 이용건수</td></tr>
+<tr><td>가리기</td><td>가리는 기준 값은 그 칸의 이용건수 합·이용금액 합·이용자수 합(0 이면 뺌) 가운데 가장 작은 값이다(최종 표시값 기준. 금액에도 적용). 10 미만이면 가린다: 보일 값이 10 미만이면 "10 미만", 값은 10 이상인데 이용자수 때문에 가리면 "가림". 한 줄이나 한 열에 가린 칸이 하나뿐이면 합계에서 빼서 알 수 있으므로 다음으로 작은 칸도 "가림"으로 가린다. 합계·줄 합계·열 합계·총계도 10 미만이면 "숨김"으로 바꾼다. 비중 표도 같은 결정으로 가린다.</td></tr>
+<tr><td>표 사이의 역산</td><td>한 화면의 표가 같은 값을 나눠 보이므로(시간대별 표의 값 = 교차표의 줄 합계), 한 줄짜리 표에서 가린 값은 교차표의 줄·열 합계에서도 숨기고 그 줄(열)의 칸 하나를 함께 가린다. 줄이나 열이 하나뿐인 교차표는 내지 않는다. 법정동별 비중 표는 파일에 든 법정동이 모두 나올 때 가린 곳이 하나뿐이면 다음으로 작은 곳도 가린다. 화면 전체의 "합 = 부분의 합" 관계를 점검해 거꾸로 셈할 수 있는 값의 수를 파일마다 적는다(동봉 가상 3종에서 0). 범위를 좁혀 짐작하는 것과 0 인 칸은 막지 못한다.</td></tr>
+<tr><td>대조 줄</td><td>파일의 그 달·그 업종 이용금액 합계와 허브 1048 의 도 전체 값의 차이(%). "검증"이 아니라 "차이"로 적는다(9절). 차이는 파일에 법정동 73곳이 모두 들어 있을 때만 낸다. 지역 조건을 걸어 받았거나 법정동이 빠진 파일은 "도 전체 값과 견주지 않았다"고만 적는다. 동봉 가상 파일이면 "차이 0.0% 는 만든 방식 때문"이라는 말을 맨 앞에 적는다.</td></tr>
+<tr><td>결측(NA)</td><td>연령대가 NA 인 줄은 "NA(알 수 없음)" 한 줄로 모으고 순위에서 뺀다(명세서 1-14 의 연령대 값 목록에 NA 가 있다).</td></tr>
+<tr><td>외부 전송</td><td>없음. 이 단계는 LLM 을 부르지 않고 네트워크를 쓰지 않는다.</td></tr>
+</tbody></table>
+<h2>9. 허브·센터 컬럼 대응표</h2>
+<p><code>data/spec/hub_center_map.json</code> 의 내용이다. 관계는 <strong>"같은 원천의 도 전체 집계본으로 보임(추정)"</strong> 이다.</p>
+<h3>9.1 허브 1048 ↔ 센터 카드 이용 현황(1-07, 1-08, 1-11, 1-12, 1-13, 1-14)</h3>
+<table><thead><tr><th>허브 1048 (파일 컬럼 / 화면 이름)</th><th>센터 컬럼</th><th>대응</th></tr></thead><tbody>
+<tr><td><code>base_year_month</code> / 연월</td><td><code>base_year_month</code></td><td>표기가 같다(YYYYMM).</td></tr>
+<tr><td><code>biz_nm</code> / 업종명</td><td><code>biz_nm</code></td><td>센터 참고표의 42개 업종명과 같다(쉼표 한 곳, 깨진 글자 한 달을 빼면 글자까지 같음). 1048 에는 업종코드가 없어 조건에 쓸 코드(<code>biz_cd</code>)는 센터 참고표에서 찾는다.</td></tr>
+<tr><td><code>user_type</code> / 이용자구분</td><td><code>user_type</code></td><td>7개 값의 표기가 같다.</td></tr>
+<tr><td><code>sex</code> / 성별</td><td><code>sex</code></td><td>3개 값의 표기가 같다.</td></tr>
+<tr><td><code>user_count</code> / 이용자수</td><td><code>user_cnt</code></td><td>월별 값. 더하지 않는다.</td></tr>
+<tr><td><code>use_count</code> / 이용건수</td><td><code>use_cnt</code></td><td>더할 수 있다.</td></tr>
+<tr><td><code>use_amount</code> / 이용금액</td><td><code>use_amt</code></td><td>더할 수 있다. 대조 줄의 기준 값</td></tr>
+<tr><td>(없음)</td><td><code>bjd</code>, <code>dstrct_se</code>, <code>city</code>, <code>week</code>, <code>time</code>, <code>age</code>, <code>tour_type</code></td><td>허브에 없는 단위. 주문서의 빈칸이 된다.</td></tr>
+</tbody></table>
+<p>추정의 근거: 센터 카드 시트 아홉 장의 업종 참고표(42행)가 서로 같고 1048 의 업종명과 같다. 이용자구분 7값·성별 3값·수치 3종이 짝을 이룬다. 1048 의 끝 달(2025-06)이 센터 v01 계열(1-07, 1-11, 1-13)의 끝 달과 같다.</p>
+<p>확인하지 못한 것: 1048 이 센터 데이터의 도 전체 합계인지 실물로 대조하지 못했다. 허브 화면에는 어느 카드사 표본인지 표기가 없다.</p>
+<h3>9.2 허브 520 ↔ 센터 내국인 유동인구(4-10, 4-11, 4-07)</h3>
+<table><thead><tr><th>허브 520</th><th>센터 컬럼</th><th>대응</th></tr></thead><tbody>
+<tr><td><code>base_year_month</code></td><td><code>base_date</code></td><td>센터는 일 단위(YYYYMMDD). 앞 6자리가 월이다.</td></tr>
+<tr><td><code>sex</code></td><td><code>sex</code></td><td>남성, 여성</td></tr>
+<tr><td><code>age_range</code></td><td><code>age</code></td><td>센터는 2022-06 까지 10세 단위(KT), 2022-07 부터 5세 단위(SKT). 520 은 8개 이름으로 적혀 있다.</td></tr>
+<tr><td><code>time_range</code></td><td><code>time</code></td><td>센터 명세서는 01~24시(정각에 잰 값). 520 은 2022-07 부터 00~23시로 적는다.</td></tr>
+<tr><td><code>visit_population_count</code></td><td><code>visit_pop_cnt</code></td><td>사람 수가 아니라 체류량에 가깝다.</td></tr>
+<tr><td>(없음)</td><td><code>emd_cd</code>, <code>emd_nm</code>, 거주지 구분 등</td><td>허브에 없는 단위</td></tr>
+</tbody></table>
+<p>추정의 근거: 520 의 끝 달(2025-04)이 센터 4-10 의 끝과 같다. 시각·성별·연령대·방문인구 축이 겹친다. 520 의 달마다 줄 수(432줄, 672줄)가 4-10 참고표의 연령 구간 수(KT 9구간, SKT 14구간) × 성별 2 × 시각 24 와 맞는다.</p>
+<p>확인하지 못한 것: 520 의 값이 센터 <code>visit_pop_cnt</code> 를 어떤 범위(거주지 구분 등)로 더한 것인지. 520 과 4-11(v02, 2025-05 시작)은 겹치는 달이 없다.</p>
+<h2>10. 외부 데이터·오픈소스 목록</h2>
+<table><thead><tr><th>종류</th><th>이름</th><th>출처</th><th>쓰임</th><th>제출 zip 포함</th></tr></thead><tbody>
+<tr><td>외부 데이터</td><td>허브 1048 업종별 성별 카드 이용 정보</td><td>https://jejudatahub.net/data/view/data/1048</td><td>2.1절</td><td>포함(원본 그대로)</td></tr>
+<tr><td>외부 데이터</td><td>허브 520 제주도 방문 내국인 유동인구 추이</td><td>https://jejudatahub.net/data/view/data/520</td><td>2.2절</td><td>포함(원본 그대로)</td></tr>
+<tr><td>공개 문서</td><td>제주빅데이터센터 데이터 명세서 v13</td><td>https://jejudatahub.net/center/data</td><td>3절</td><td>포함(원본 그대로)</td></tr>
+<tr><td>공개 문서</td><td>제주빅데이터센터 데이터 반출 정책(개정 2026-09-01)</td><td>https://jejudatahub.net/community/notice/view/48</td><td>4절</td><td>원문 미포함. 줄만 옮겨 적음</td></tr>
+<tr><td>참고 답변</td><td>대회 게시판 운영진 답변(CSV 형식 40번, 카드 v02 헤더 41번 등)</td><td>https://daker.ai/public/hackathons/jeju-ai-bigdata-agent-challenge</td><td>CSV 형식 시험 사례</td><td>미포함</td></tr>
+<tr><td>외부 API</td><td>Claude Messages API (Anthropic)</td><td>https://api.anthropic.com</td><td>LLM 모드의 문장 해석과 도구 호출</td><td>해당 없음</td></tr>
+<tr><td>오픈소스·외부 코드</td><td><strong>없음</strong></td><td></td><td></td><td></td></tr>
+<tr><td>그 밖의 외부 데이터(지도, 통계, 다른 포털)</td><td><strong>없음</strong></td><td></td><td></td><td></td></tr>
+</tbody></table>
+<h2>11. 데이터의 한계</h2>
+<p>프로그램이 주문서의 "한계"와 표의 설명 줄에 그대로 적는 것들이다.</p>
+<table><thead><tr><th>대상</th><th>한계</th></tr></thead><tbody>
+<tr><td>허브 1048</td><td>도 전체 값이다. 지역·요일·시간대·연령대 구분이 없다.</td></tr>
+<tr><td>허브 1048</td><td>어느 카드사의 이용 기록인지 허브에 표기가 없다. 센터 카드 데이터 시트의 제공처는 "제주특별자치도(비씨카드)"이고 1048 이 그 도 전체 집계본으로 보이므로 <strong>한 카드사 표본으로 보인다(추정).</strong> 전체 카드 소비가 아니다.</td></tr>
+<tr><td>허브 1048</td><td>2025-06 에서 끝난다. 그 뒤의 달은 계절 지수(1~12월)로만 가늠한다.</td></tr>
+<tr><td>허브 1048</td><td>계절 지수는 2018~2024 일곱 해의 평균이다. 특이한 해를 따로 빼지 않는다.</td></tr>
+<tr><td>허브 520</td><td>내국인 방문객만 센 값이다. 외국인이 없어, 외국인 목적에는 도 전체 값도 낼 수 없다(시나리오 3).</td></tr>
+<tr><td>허브 520</td><td>사람 수가 아니라 <strong>체류량</strong>에 가깝다(허브 설명: 정각 측정 인구, 머문 시간(분)/60분, 연월별 합계). 방문객 수로 읽으면 안 된다.</td></tr>
+<tr><td>허브 520</td><td>2022-07 에 통신사가 바뀌어(KT → SKT) 앞뒤 값의 수준과 연령 구간이 다르다. 계절 지수를 나눠 계산하고 뒤 구간(두 해)만 쓴다. 근거가 되는 해가 적다.</td></tr>
+<tr><td>허브 520</td><td>2025-04 에서 끝난다. 센터의 새 판(4-11, 4-15 등 v02)과 겹치는 달이 없어 대조할 수 없다.</td></tr>
+<tr><td>받을 달</td><td>도 전체 기준으로 고른 달이다. 읍면동에서는 많은 달과 적은 달이 다를 수 있다.</td></tr>
+<tr><td>받을 달</td><td>외국인 목적은 공개 데이터에 값이 없어 내국인 계절 지수를 "참고"로만 쓴다. 외국인의 흐름과 같다는 근거는 없다.</td></tr>
+<tr><td>명세서</td><td>"현재까지"인 데이터의 실제 최신 달이 없다.</td></tr>
+<tr><td>명세서</td><td>법정동(카드·포스, 73개)과 행정동(유동인구, 43개)의 대응표가 없다. 카드와 유동인구를 같은 동으로 맞붙일 수 없다.</td></tr>
+<tr><td>명세서</td><td>법정동 "월평동"이 제주시와 서귀포시에 하나씩 있다. 조건에 권역을 함께 적어야 갈린다.</td></tr>
+<tr><td>명세서</td><td>격자 데이터는 격자코드만 있고 좌표표가 없다.</td></tr>
+<tr><td>센터 카드 데이터</td><td>요일(1-12)과 시간대(1-14)가 서로 다른 파일이라 한 표에서 함께 볼 수 없다(시나리오 2).</td></tr>
+<tr><td>센터 포스 데이터(1-22 등)</td><td>표본 가맹점 기준이고, 법정동·격자 합산은 k값 3 미만을 뺀 수치라 도 전체 합과 다를 수 있다. 연령이 "20(이하)"로 묶여 있다. 법정동명(<code>bjd_nm</code>)은 시트에 값 목록이 없어(1-19, 1-22, 1-24) 카드 1-07 의 법정동 목록을 빌려 대조하고, 주문서에 "명세서로 확인 못 함"으로 표시한다.</td></tr>
+<tr><td>대조 줄</td><td>허브 1048 과 센터 카드 데이터가 같은 원천이라는 것은 추정이다. 그래서 "검증 통과"가 아니라 "차이"로만 적는다.</td></tr>
+<tr><td>가상 센터 CSV</td><td>실제 센터 데이터가 아니다. 분포는 지어낸 것이며, 이 파일로 나온 수치에는 분석상의 뜻이 없다.</td></tr>
+<tr><td>실제 센터 CSV</td><td>한 번도 보지 못했다. 실제 파일이 명세서와 다르면 프로그램은 멈추지 않고 다른 컬럼을 진단으로 낸다.</td></tr>
+</tbody></table>
+<h2>12. 재현 방법</h2>
+<pre><code>python3 tools/build_spec.py --check        명세서 xlsx → spec.json 변환이 같은지
+python3 tools/make_sample_center.py        가상 센터 CSV 3종을 같은 시드로 다시 만들기
+python3 -m unittest discover -s tests      전처리·집계·인식·가리기 시험
+python3 tools/e2e.py                       시나리오 3개 + CSV 재분석 + 삭제 재현</code></pre>
+<p>허브 실물 파일이 없는 곳에서 돌려야 할 때만 <code>python3 tools/make_placeholder_public.py</code> 로 같은 모양의 대체 파일을 만든다. 대체 파일을 쓰는 동안에는 화면 오른쪽 위에 "공개 데이터: 대체 파일로 계산 중"이 뜬다. 제출본에는 대체 파일이 들어 있지 않다.</p>
+<p class="made">이 파일은 docs/데이터_활용_명세.md 를 tools/make_docs_html.py 로 바꾼 것입니다. 내용은 같습니다.</p>
+</body>
+</html>

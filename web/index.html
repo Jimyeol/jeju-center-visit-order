@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>센터 방문 주문서</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" id="skipLink" href="#main">본문으로 바로 가기</a>
+
+<header class="top">
+  <div class="top-in">
+    <p class="app-name">센터 방문 주문서</p>
+    <button type="button" class="top-link" id="clearBtn" aria-label="처음부터 다시 하기(결과 지우기)">처음부터</button>
+  </div>
+</header>
+
+<div class="dots" aria-hidden="true"><span class="dot" id="dot1"></span><span class="dot" id="dot2"></span><span class="dot" id="dot3"></span></div>
+<p class="sr-only" id="dotsSr"></p>
+
+<div class="bands">
+  <p class="band band-warn" id="phBanner" hidden><span data-icon="alert"></span><span>공개 데이터가 대체 파일이에요. 그래프 숫자는 실제와 다를 수 있어요.</span></p>
+  <div class="band band-down" id="downBanner" role="alert" hidden>
+    <span class="illu-slot illu-unplug" data-illu="unplug"></span>
+    <div class="band-text">
+      <p><strong>프로그램과 연결이 끊겼어요.</strong></p>
+      <p>처음에 연 검은 창이 닫혔으면 다시 실행한 뒤 [다시 연결]을 눌러 주세요.</p>
+    </div>
+    <button type="button" class="btn-sub btn-small" id="retryBtn">다시 연결</button>
+  </div>
+  <div class="band band-info" id="busyBand" role="status" hidden><span data-icon="clock"></span><span class="band-text">받을 목록을 만들고 있어요. 다 되면 여기에서 알려 드릴게요.</span><a class="link" href="#/loading">보기 ›</a></div>
+  <div class="band band-ok" id="globalMsg" role="status" hidden></div>
+  <div class="errorbox" id="globalError" role="alert" hidden></div>
+</div>
+<p class="sr-only" id="liveMsg" aria-live="polite"></p>
+
+<main id="main">
+
+  <!-- 질문 (#/home) -->
+  <section class="page" id="page-home" hidden>
+    <p class="note-line" id="homeNote" hidden></p>
+    <div class="card">
+      <span class="illu-slot illu-hero" data-illu="ask"></span>
+      <h1 class="title" id="homeTitle" tabindex="-1">무엇이 궁금하세요?</h1>
+      <p class="sub">궁금한 내용을 한 문장으로 적어 주세요.</p>
+      <form id="planForm" class="ask-form" novalidate>
+        <label class="sr-only" for="purposeText">궁금한 것</label>
+        <textarea id="purposeText" name="text" rows="4" maxlength="300" autocomplete="off"
+                  aria-describedby="textKeyHint"
+                  placeholder="예) 노형동 한식당에 언제 손님이 많은지 알고 싶어요."></textarea>
+        <p class="sr-only" id="textKeyHint">Enter 를 누르면 받을 목록을 만들고, 줄을 바꾸려면 Shift+Enter 를 누릅니다.</p>
+        <div class="chips" id="examples" role="group" aria-label="예시 질문"></div>
+        <p class="pick-link"><a class="link" href="#/pick">직접 고르기 ›</a></p>
+        <button type="submit" class="btn-main" id="planBtn">받을 목록 만들기</button>
+        <button type="button" class="btn-sub" id="sampleBtn">샘플로 끝까지 해 보기</button>
+      </form>
+      <div class="errorbox" id="planError" role="alert" hidden></div>
+    </div>
+  </section>
+
+  <!-- 직접 고르기 (#/pick) -->
+  <section class="page" id="page-pick" hidden>
+    <a class="back" href="#/home" data-back="1"><span data-icon="arrow-left"></span>돌아가기</a>
+    <div class="card">
+      <span class="illu-slot illu-head" data-illu="pick-list"></span>
+      <h1 class="title" id="pickTitle" tabindex="-1">직접 골라 주세요</h1>
+      <p class="sub">하나만 골라도 돼요. AI 없이 바로 만들어요.</p>
+      <form id="pickForm" class="pick-form" novalidate>
+        <div class="field">
+          <label class="field-label" for="slotWho">누구의 이용을 볼까요?</label>
+          <select id="slotWho" name="who"></select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="slotWhat">무엇을 볼까요? (업종, 방문·유동인구)</label>
+          <select id="slotWhat" name="what"></select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="slotWhen">언제를 나눠 볼까요?</label>
+          <select id="slotWhen" name="when"></select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="slotRegion">어느 지역인가요?</label>
+          <select id="slotRegion" name="region"></select>
+        </div>
+        <fieldset class="units" id="unitsField">
+          <legend class="field-label">함께 나눠 볼 기준</legend>
+          <div id="slotUnits" class="units-list"></div>
+        </fieldset>
+        <button type="submit" class="btn-main" id="pickBtn">받을 목록 만들기</button>
+      </form>
+      <div class="errorbox" id="pickError" role="alert" hidden></div>
+    </div>
+  </section>
+
+  <!-- 불러오는 중 (#/loading) -->
+  <section class="page" id="page-loading" hidden>
+    <div class="card card-center card-tall">
+      <span class="illu-slot illu-big" data-illu="doc-search"></span>
+      <h1 class="title" id="loadTitle" tabindex="-1">질문을 읽고 있어요</h1>
+      <p class="sub">받을 자료와 달을 찾는 중이에요.</p>
+      <div class="progress" id="loadBar" role="progressbar" aria-label="받을 목록 만드는 중" aria-valuetext="불러오는 중"><span class="progress-fill" id="loadFill"></span></div>
+      <p class="small-note" id="loadTime" aria-hidden="true"></p>
+    </div>
+  </section>
+
+  <!-- 받을 목록 (#/list) -->
+  <section class="page" id="page-list" hidden>
+    <a class="back" href="#/home" id="listBack"><span data-icon="arrow-left"></span>질문 고치기</a>
+    <div class="card">
+      <span class="illu-slot illu-head" id="listIllu"></span>
+      <h1 class="title" id="listTitle" tabindex="-1">이렇게 받으시면 돼요</h1>
+      <p class="sub" id="listSub"></p>
+      <div id="listBody"></div>
+    </div>
+  </section>
+
+  <!-- 상세 페이지 (#/detail/…, #/trust/…, #/alt, #/file/detail/…, #/status 등) -->
+  <section class="page" id="page-detail" hidden>
+    <a class="back" href="#/list" id="detailBack" data-back="1"><span data-icon="arrow-left"></span>돌아가기</a>
+    <div class="card">
+      <span class="illu-slot illu-head" id="detailIllu"></span>
+      <h1 class="title" id="detailTitle" tabindex="-1"></h1>
+      <p class="sub" id="detailSub"></p>
+      <div class="page-body" id="detailBody"></div>
+    </div>
+  </section>
+
+  <!-- 도움말 (#/help) -->
+  <section class="page" id="page-help" hidden>
+    <a class="back" href="#/home" data-back="1"><span data-icon="arrow-left"></span>돌아가기</a>
+    <div class="card">
+      <span class="illu-slot illu-head" data-illu="route"></span>
+      <h1 class="title" id="helpTitle" tabindex="-1">이렇게 쓰면 돼요</h1>
+      <p class="sub">제주빅데이터센터 데이터 이용 도우미예요.</p>
+      <ol class="steps">
+        <li><span class="step-no" aria-hidden="true">1</span><span class="step-text"><b>궁금한 것을 적어요</b><span>평소 말로 한 문장이면 돼요.</span></span></li>
+        <li><span class="step-no" aria-hidden="true">2</span><span class="step-text"><b>목록을 인쇄해 센터에 가요</b><span>센터 데이터는 한 번에 한 달 치씩 받아요.</span></span></li>
+        <li><span class="step-no" aria-hidden="true">3</span><span class="step-text"><b>센터 PC에서 받은 파일을 넣어요</b><span>받은 파일은 센터 밖으로 가져갈 수 없어요.</span></span></li>
+      </ol>
+      <h2 class="h2">물어볼 수 있는 범위</h2>
+      <p class="body-text" id="scopeText"></p>
+      <p class="body-text muted">화면의 숫자는 모두 프로그램이 계산한 값이에요. 받을 달은 제주도 전체 공개 데이터로 골라 동네마다 다를 수 있어요.</p>
+      <ul class="slip">
+        <li><a class="slip-row" href="manual.html" target="_blank" rel="noopener"><span class="slip-text"><span class="slip-value">사용 설명서 열기</span><span class="slip-label">새 창에서 열려요</span></span><span data-icon="chevron-right" class="slip-chev"></span></a></li>
+        <li><a class="slip-row" href="#/status"><span class="slip-text"><span class="slip-value">프로그램 상태</span><span class="slip-label">자가 점검 결과</span></span><span data-icon="chevron-right" class="slip-chev"></span></a></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 받은 파일 (#/file, #/file/k) -->
+  <section class="page" id="page-file" hidden>
+    <a class="back" href="#/list" id="fileBack"><span data-icon="arrow-left"></span>받을 목록</a>
+    <div class="card" id="fileCard">
+      <div id="fileHead"></div>
+      <h1 class="title" id="fileTitle" tabindex="-1">받은 파일을 넣어 주세요</h1>
+      <p class="sub" id="fileSub">센터 PC에서 내려받은 파일을 그대로 넣으면 돼요.</p>
+      <div id="fileBodyTop"></div>
+      <div class="errorbox csv-errors" id="csvError" role="alert" hidden></div>
+      <div class="drop" id="dropZone">
+        <span class="illu-slot illu-big" data-illu="drop-file" id="dropIllu"></span>
+        <div class="drop-busy" id="csvProgress" role="status" hidden>
+          <div class="progress"><span class="progress-fill busy"></span></div>
+          <p id="csvProgressText">파일을 읽고 있어요.</p>
+        </div>
+        <p class="drop-title" id="dropTitle">여기에 끌어다 놓거나</p>
+        <input type="file" id="csvFile" class="file-input" multiple accept=".csv,text/csv">
+        <label for="csvFile" class="btn-main file-btn" id="fileBtn"><span data-icon="upload"></span><span id="fileBtnText">파일 고르기</span></label>
+        <p class="small-note" id="dropHint">여러 개를 한꺼번에 넣어도 돼요.</p>
+        <button type="button" class="link" id="sampleCsvBtn">파일이 없으면 연습용 샘플 파일로 해 보기</button>
+      </div>
+      <div id="fileResult"></div>
+      <div id="fileFoot"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <a class="foot-link" href="#/help">도움말</a>
+  <span class="foot-sep" aria-hidden="true">·</span>
+  <a class="foot-link" href="#/status">프로그램 상태</a>
+</footer>
+
+<dialog class="confirm" id="confirmDlg" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+  <form method="dialog" class="confirm-in">
+    <span class="illu-slot illu-head" data-illu="none"></span>
+    <h2 class="confirm-title" id="confirmTitle">처음부터 다시 할까요?</h2>
+    <p class="confirm-text" id="confirmText">화면의 결과와 넣은 파일, 기록을 모두 지워요. 되돌릴 수 없어요. 센터에서 받은 원본 파일은 그대로 둬요.</p>
+    <div class="actions">
+      <button type="submit" class="btn-main" value="ok" id="confirmOk">지우기</button>
+      <button type="submit" class="btn-sub" value="cancel" id="confirmCancel" autofocus>취소</button>
+    </div>
+  </form>
+</dialog>
+
+<section class="print-sheet" id="orderPanel" aria-label="인쇄용 주문서"></section>
+<div class="chart-tip" id="chartTip" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
